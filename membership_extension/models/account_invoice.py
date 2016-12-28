@@ -22,19 +22,20 @@ class AccountInvoice(models.Model):
             'state': 'canceled',
         })
         for refund in self.filtered(lambda r: r.type == 'out_refund'):
-            origin = self.search([
-                ('type', '=', 'out_invoice'),
-                ('number', '=', refund.origin),
-            ])
-            lines = origin.mapped('invoice_line').mapped('membership_lines')
-            if origin and lines:
-                origin_state = 'paid' if origin.state == 'paid' else 'invoiced'
-                lines.filtered(lambda r: r.state == 'canceled').write({
-                    'state': origin_state,
-                })
-                lines.write({
-                    'date_cancel': False,
-                })
+            if refund.origin:
+                origin = self.search([
+                    ('type', '=', 'out_invoice'),
+                    ('number', '=', refund.origin),
+                ])
+                lines = origin.mapped('invoice_line').mapped('membership_lines')
+                if origin and lines:
+                    origin_state = 'paid' if origin.state == 'paid' else 'invoiced'
+                    lines.filtered(lambda r: r.state == 'canceled').write({
+                        'state': origin_state,
+                    })
+                    lines.write({
+                        'date_cancel': False,
+                    })
         return super(AccountInvoice, self).action_cancel()
 
     @api.multi
@@ -43,21 +44,22 @@ class AccountInvoice(models.Model):
             'state': 'invoiced',
         })
         for refund in self.filtered(lambda r: r.type == 'out_refund'):
-            origin = self.search([
-                ('type', '=', 'out_invoice'),
-                ('number', '=', refund.origin),
-            ])
-            lines = origin.mapped('invoice_line').mapped('membership_lines')
-            if origin and lines:
-                if origin.amount_untaxed == refund.amount_untaxed:
-                    lines.write({
-                        'state': 'canceled',
-                        'date_cancel': refund.date_invoice,
-                    })
-                else:
-                    lines.write({
-                        'date_cancel': refund.date_invoice,
-                    })
+            if refund.origin:
+                origin = self.search([
+                    ('type', '=', 'out_invoice'),
+                    ('number', '=', refund.origin),
+                ])
+                lines = origin.mapped('invoice_line').mapped('membership_lines')
+                if origin and lines:
+                    if origin.amount_untaxed == refund.amount_untaxed:
+                        lines.write({
+                            'state': 'canceled',
+                            'date_cancel': refund.date_invoice,
+                        })
+                    else:
+                        lines.write({
+                            'date_cancel': refund.date_invoice,
+                        })
         return super(AccountInvoice, self).invoice_validate()
 
     @api.multi
